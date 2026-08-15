@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#8C1D40">
+  <title>College List 2026</title>
+  <style>
+    :root {
+      --maroon: #8C1D40;
+      --maroon-dark: #6d1732;
+      --gold: #FFC627;
+      --ink: #1c1410;
+      --muted: #6b5b53;
+      --line: #e8ddd4;
+      --paper: #fffaf4;
+      --card: #ffffff;
+      --done: #2f6f4e;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      min-height: 100dvh;
+    }
+    header {
+      position: sticky; top: 0; z-index: 5;
+      background: var(--maroon); color: #fff;
+      padding: 16px 16px 14px;
+      padding-top: calc(16px + env(safe-area-inset-top));
+    }
+    header h1 { margin: 0; font-size: 1.35rem; letter-spacing: -0.02em; }
+    header p { margin: 4px 0 0; font-size: 0.85rem; opacity: 0.85; }
+    .wrap { max-width: 42rem; margin: 0 auto; padding: 12px 16px 120px; }
+    .who { display: flex; gap: 8px; margin: 12px 0; }
+    .who button {
+      flex: 1; border: 1px solid var(--line); background: var(--card);
+      border-radius: 999px; padding: 10px 8px; font: inherit; font-weight: 600;
+      color: var(--ink);
+    }
+    .who button.on { background: var(--maroon); color: #fff; border-color: var(--maroon); }
+    .progress { background: #f0e6dc; border-radius: 999px; height: 10px; overflow: hidden; }
+    .progress > span { display: block; height: 100%; width: 0; background: var(--gold); }
+    .counts { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); margin: 8px 0 14px; }
+    .tools { display: flex; gap: 8px; margin-bottom: 12px; }
+    .tools input, .add input, .add select {
+      width: 100%; border: 1px solid var(--line); border-radius: 12px;
+      padding: 12px 14px; font: inherit; background: var(--card);
+    }
+    .filters { display: flex; gap: 8px; margin: 0 0 16px; }
+    .filters button, .add button {
+      border: 0; background: #efe6dc; color: var(--ink); font: inherit; font-weight: 600;
+      border-radius: 999px; padding: 8px 12px;
+    }
+    .filters button.on { background: var(--ink); color: #fff; }
+    .cat { margin: 22px 0 8px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--maroon); }
+    .item {
+      display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center;
+      background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+      padding: 12px 12px; margin: 0 0 8px;
+    }
+    .item.got { opacity: 0.55; }
+    .item.got .name { text-decoration: line-through; }
+    .check {
+      width: 24px; height: 24px; border: 2px solid var(--maroon); border-radius: 7px;
+      background: #fff; padding: 0;
+    }
+    .item.got .check { background: var(--done); border-color: var(--done); }
+    .name { font-weight: 600; line-height: 1.25; }
+    .hint { display: block; font-size: 0.75rem; color: var(--muted); font-weight: 500; margin-top: 2px; }
+    .claim {
+      border: 0; background: #f4ebe3; color: var(--ink); font: inherit; font-size: 0.75rem; font-weight: 700;
+      border-radius: 999px; padding: 6px 8px; white-space: nowrap;
+    }
+    .claim.mine { background: var(--gold); }
+    .add {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      background: #fff; border-top: 1px solid var(--line);
+      padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    }
+    .add-row { max-width: 42rem; margin: 0 auto; display: grid; grid-template-columns: 1fr 9.5rem auto; gap: 8px; }
+    .empty { color: var(--muted); text-align: center; padding: 28px 8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>College List 2026</h1>
+    <p>ASU apartment · tap to grab it · add anything we forgot</p>
+  </header>
+  <div class="wrap">
+    <div class="who" id="who"></div>
+    <div class="progress"><span id="bar"></span></div>
+    <div class="counts"><span id="count"></span><span id="you"></span></div>
+    <div class="tools"><input id="q" type="search" placeholder="Search the list"></div>
+    <div class="filters" id="filters"></div>
+    <div id="list"></div>
+  </div>
+  <form class="add" id="add">
+    <div class="add-row">
+      <input id="newName" placeholder="Add an item" required>
+      <select id="newCat"></select>
+      <button type="submit">Add</button>
+    </div>
+  </form>
+  <script>
+    const PEOPLE = ["Jeff", "Dylan", "Cole"];
+    const CATS = ["Other", "Kitchen & Dining", "Cleaning & Laundry", "Bedding", "Bathroom", "Toiletries", "Living & Study"];
+    const SEED = [
+      ["Other", "Backpack", false],
+      ["Other", "Towel paper holder", false],
+      ["Other", "Air fryer", true],
+      ["Other", "Sheets", true],
+      ["Other", "Cutlery drawer organizer", true],
+      ["Kitchen & Dining", "Dish rack or drying mat", true],
+      ["Kitchen & Dining", "Plates, bowls, cups, mugs", true],
+      ["Kitchen & Dining", "Trash can", true],
+      ["Kitchen & Dining", "Trash bags", true],
+      ["Kitchen & Dining", "Paper towels & holder", true],
+      ["Kitchen & Dining", "Dish soap & sponge", true],
+      ["Kitchen & Dining", "Dish towels", true],
+      ["Kitchen & Dining", "Food storage containers", true],
+      ["Kitchen & Dining", "Can opener & bottle opener", true],
+      ["Kitchen & Dining", "Measuring cups & spoons", true],
+      ["Kitchen & Dining", "Mixing bowls", true],
+      ["Kitchen & Dining", "Baking sheet", true],
+      ["Kitchen & Dining", "Pots and pans (medium saucepan, large skillet, small pot)", true],
+      ["Kitchen & Dining", "Cutting board", true],
+      ["Kitchen & Dining", "Kitchen knife set", true],
+      ["Kitchen & Dining", "Cooking utensils (spatula, tongs, ladle, whisk)", true],
+      ["Kitchen & Dining", "Cutlery set", true],
+      ["Cleaning & Laundry", "Laundry basket or hamper", true],
+      ["Cleaning & Laundry", "All-purpose cleaner", true],
+      ["Cleaning & Laundry", "Mop or Swiffer", true],
+      ["Cleaning & Laundry", "Dryer sheets", true],
+      ["Cleaning & Laundry", "Laundry detergent", true],
+      ["Cleaning & Laundry", "Vacuum (compact)", true],
+      ["Cleaning & Laundry", "Fabric softener", true],
+      ["Cleaning & Laundry", "Stain remover", true],
+      ["Cleaning & Laundry", "Broom & dustpan", true],
+      ["Cleaning & Laundry", "Disinfecting wipes", true],
+      ["Cleaning & Laundry", "Glass cleaner", true],
+      ["Bedding", "Comforter/blanket", true],
+      ["Bedding", "Sheets & pillowcases", true],
+      ["Bedding", "Mattress protector", true],
+      ["Bedding", "Pillows", true],
+      ["Bathroom", "Bathroom trash can", true],
+      ["Bathroom", "Shower curtain & liner", true],
+      ["Bathroom", "Bath towels (2–3)", true],
+      ["Bathroom", "Toilet brush & plunger", true],
+      ["Bathroom", "Bath mat", true],
+      ["Bathroom", "Hand towels & washcloths", true],
+      ["Toiletries", "Toothbrush & toothpaste", true],
+      ["Toiletries", "Soap or body wash", true],
+      ["Toiletries", "Shampoo & conditioner", true],
+      ["Toiletries", "Deodorant", true],
+      ["Toiletries", "Razor & shaving cream", true],
+      ["Toiletries", "Toilet paper", true],
+      ["Living & Study", "TV & streaming device (optional)", true],
+      ["Living & Study", "Throw blanket & decorative pillows", true],
+      ["Living & Study", "Small bookshelf or storage cube unit", true],
+      ["Living & Study", "Surge protector", true],
+      ["Living & Study", "Power strips & extension cords", true],
+      ["Living & Study", "Desk lamp", true],
+      ["Living & Study", "Desk & chair (if needed)", true]
+    ];
+
+    const KEY = "college-list-2026-v1";
+    const state = load();
+    let filter = "todo";
+    let query = "";
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return {
+        me: "Jeff",
+        items: SEED.map(([category, name, hadLastYear], i) => ({
+          id: "i" + i,
+          category, name, hadLastYear,
+          done: false,
+          who: ""
+        }))
+      };
+    }
+    function save() {
+      localStorage.setItem(KEY, JSON.stringify(state));
+      render();
+    }
+
+    document.getElementById("who").innerHTML = PEOPLE.map(p =>
+      `<button type="button" data-p="${p}">${p}</button>`
+    ).join("");
+    document.getElementById("filters").innerHTML =
+      `<button data-f="todo">To get</button><button data-f="all">All</button><button data-f="done">Got it</button>`;
+    document.getElementById("newCat").innerHTML = CATS.map(c => `<option>${c}</option>`).join("");
+
+    document.getElementById("who").onclick = (e) => {
+      const p = e.target.dataset.p;
+      if (!p) return;
+      state.me = p;
+      save();
+    };
+    document.getElementById("filters").onclick = (e) => {
+      const f = e.target.dataset.f;
+      if (!f) return;
+      filter = f;
+      render();
+    };
+    document.getElementById("q").oninput = (e) => { query = e.target.value.toLowerCase(); render(); };
+    document.getElementById("add").onsubmit = (e) => {
+      e.preventDefault();
+      const name = document.getElementById("newName").value.trim();
+      if (!name) return;
+      state.items.push({
+        id: "n" + Date.now(),
+        category: document.getElementById("newCat").value,
+        name,
+        hadLastYear: false,
+        done: false,
+        who: state.me
+      });
+      document.getElementById("newName").value = "";
+      save();
+    };
+
+    function render() {
+      document.querySelectorAll("#who button").forEach(b => b.classList.toggle("on", b.dataset.p === state.me));
+      document.querySelectorAll("#filters button").forEach(b => b.classList.toggle("on", b.dataset.f === filter));
+      const got = state.items.filter(i => i.done).length;
+      const total = state.items.length;
+      document.getElementById("bar").style.width = (total ? (got / total) * 100 : 0) + "%";
+      document.getElementById("count").textContent = got + " of " + total + " got";
+      document.getElementById("you").textContent = "Shopping as " + state.me;
+      const q = query;
+      const shown = state.items.filter(i => {
+        if (filter === "todo" && i.done) return false;
+        if (filter === "done" && !i.done) return false;
+        if (q && !i.name.toLowerCase().includes(q) && !i.category.toLowerCase().includes(q)) return false;
+        return true;
+      });
+      const root = document.getElementById("list");
+      if (!shown.length) {
+        root.innerHTML = `<div class="empty">Nothing in this view.</div>`;
+        return;
+      }
+      let html = "";
+      let last = "";
+      for (const item of shown) {
+        if (item.category !== last) {
+          html += `<div class="cat">${item.category}</div>`;
+          last = item.category;
+        }
+        const hint = item.hadLastYear ? `<span class="hint">Had last year</span>` : "";
+        const who = item.who || "Claim";
+        html += `<div class="item ${item.done ? "got" : ""}">
+          <button class="check" data-act="toggle" data-id="${item.id}" aria-label="Got ${item.name}"></button>
+          <div><div class="name">${esc(item.name)}</div>${hint}</div>
+          <button class="claim ${item.who === state.me ? "mine" : ""}" data-act="claim" data-id="${item.id}">${esc(who)}</button>
+        </div>`;
+      }
+      root.innerHTML = html;
+      root.onclick = (e) => {
+        const btn = e.target.closest("button");
+        if (!btn) return;
+        const item = state.items.find(i => i.id === btn.dataset.id);
+        if (!item) return;
+        if (btn.dataset.act === "toggle") {
+          item.done = !item.done;
+          if (item.done && !item.who) item.who = state.me;
+        } else if (btn.dataset.act === "claim") {
+          item.who = item.who === state.me ? "" : state.me;
+        }
+        save();
+      };
+    }
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+    }
+    render();
+  </script>
+</body>
+</html>
