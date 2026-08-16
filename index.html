@@ -83,6 +83,15 @@
     }
     .add-row { max-width: 42rem; margin: 0 auto; display: grid; grid-template-columns: 1fr 9.5rem auto; gap: 8px; }
     .empty { color: var(--muted); text-align: center; padding: 28px 8px; }
+    .todo-add { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 0 0 10px; }
+    .todo-add input {
+      width: 100%; border: 1px solid var(--line); border-radius: 12px;
+      padding: 12px 14px; font: inherit; background: var(--card);
+    }
+    .todo-add button {
+      border: 0; background: var(--maroon); color: #fff; font: inherit; font-weight: 600;
+      border-radius: 12px; padding: 8px 14px;
+    }
   </style>
 </head>
 <body>
@@ -107,8 +116,16 @@
   </form>
   <script>
     const PEOPLE = ["Jeff", "Dylan", "Cole"];
-    const CATS = ["Other", "Kitchen & Dining", "Cleaning & Laundry", "Bedding", "Bathroom", "Toiletries", "Living & Study"];
+    const CATS = ["Todo", "Other", "Kitchen & Dining", "Cleaning & Laundry", "Bedding", "Bathroom", "Toiletries", "Living & Study"];
+    const TODO_SEED = ["Walmart Run", "Grocery Run", "Setup AT&T Internet", "Hang curtains", "Assemble Lamps", "Setup TV", "Dylan Taxes"];
     const SEED = [
+      ["Todo", "Walmart Run", false],
+      ["Todo", "Grocery Run", false],
+      ["Todo", "Setup AT&T Internet", false],
+      ["Todo", "Hang curtains", false],
+      ["Todo", "Assemble Lamps", false],
+      ["Todo", "Setup TV", false],
+      ["Todo", "Dylan Taxes", false],
       ["Other", "Backpack", false],
       ["Other", "Towel paper holder", false],
       ["Other", "Air fryer", true],
@@ -172,20 +189,34 @@
     let filter = "todo";
     let query = "";
 
+    function seedItems() {
+      return SEED.map(([category, name, hadLastYear], i) => ({
+        id: "i" + i,
+        category, name, hadLastYear,
+        done: false,
+        who: ""
+      }));
+    }
     function load() {
       try {
         const raw = localStorage.getItem(KEY);
-        if (raw) return JSON.parse(raw);
+        if (raw) {
+          const saved = JSON.parse(raw);
+          if (saved.items && !saved.items.some(i => i.category === "Todo")) {
+            const todos = TODO_SEED.map((name, i) => ({
+              id: "t" + i,
+              category: "Todo",
+              name,
+              hadLastYear: false,
+              done: false,
+              who: ""
+            }));
+            saved.items = todos.concat(saved.items);
+          }
+          return saved;
+        }
       } catch (e) {}
-      return {
-        me: "Jeff",
-        items: SEED.map(([category, name, hadLastYear], i) => ({
-          id: "i" + i,
-          category, name, hadLastYear,
-          done: false,
-          who: ""
-        }))
-      };
+      return { me: "Jeff", items: seedItems() };
     }
     function save() {
       localStorage.setItem(KEY, JSON.stringify(state));
@@ -245,7 +276,18 @@
       });
       const root = document.getElementById("list");
       if (!shown.length) {
-        root.innerHTML = `<div class="empty">Nothing in this view.</div>`;
+        const showTodoAdd = filter !== "done" && !query;
+        root.innerHTML = (showTodoAdd ? `<div class="cat">Todo</div><form class="todo-add" id="addTodo"><input id="newTodo" placeholder="Add a todo" required><button type="submit">Add</button></form>` : "") + `<div class="empty">Nothing in this view.</div>`;
+        const addTodoEmpty = document.getElementById("addTodo");
+        if (addTodoEmpty) {
+          addTodoEmpty.onsubmit = (e) => {
+            e.preventDefault();
+            const name = document.getElementById("newTodo").value.trim();
+            if (!name) return;
+            state.items.unshift({ id: "t" + Date.now(), category: "Todo", name, hadLastYear: false, done: false, who: state.me });
+            save();
+          };
+        }
         return;
       }
       let html = "";
@@ -253,6 +295,9 @@
       for (const item of shown) {
         if (item.category !== last) {
           html += `<div class="cat">${item.category}</div>`;
+          if (item.category === "Todo") {
+            html += `<form class="todo-add" id="addTodo"><input id="newTodo" placeholder="Add a todo" required><button type="submit">Add</button></form>`;
+          }
           last = item.category;
         }
         const hint = item.hadLastYear ? `<span class="hint">Had last year</span>` : "";
@@ -264,6 +309,19 @@
         </div>`;
       }
       root.innerHTML = html;
+      const addTodo = document.getElementById("addTodo");
+      if (addTodo) {
+        addTodo.onsubmit = (e) => {
+          e.preventDefault();
+          const name = document.getElementById("newTodo").value.trim();
+          if (!name) return;
+          const firstShop = state.items.findIndex(i => i.category !== "Todo");
+          const row = { id: "t" + Date.now(), category: "Todo", name, hadLastYear: false, done: false, who: state.me };
+          if (firstShop === -1) state.items.push(row);
+          else state.items.splice(firstShop, 0, row);
+          save();
+        };
+      }
       root.onclick = (e) => {
         const btn = e.target.closest("button");
         if (!btn) return;
